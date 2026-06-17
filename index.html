@@ -1082,8 +1082,24 @@ if(_themeBtn){
       resources+=`\n    <m:colorgroup id="${bpCGId}">\n      <m:color color="#2a2724"/>\n    </m:colorgroup>`;
     }
 
-    // Per-color bead objects
+    // Per-color bead objects — each color on its own plate
     if(mode!=='board'){
+      // Compute bounding box of all beads to determine plate spacing
+      let minX=Infinity,minY=Infinity,maxX=-Infinity,maxY=-Infinity,beadZ=0;
+      for(let ci=0;ci<palette.length;ci++){
+        const grp=groups[ci];
+        if(!grp||grp.verts.length===0)continue;
+        for(let vi=0;vi<grp.verts.length;vi++){
+          const v=grp.verts[vi];
+          if(v[0]<minX)minX=v[0];if(v[1]<minY)minY=v[1];
+          if(v[0]>maxX)maxX=v[0];if(v[1]>maxY)maxY=v[1];
+          if(v[2]>beadZ)beadZ=v[2];
+        }
+      }
+      const bboxW=maxX-minX,bboxH=maxY-minY;
+      const plateGap=20; // gap between plates
+      // Arrange plates in a row: each plate holds one color's beads at origin-offset position
+      let plateIndex=0;
       for(let ci=0;ci<palette.length;ci++){
         const grp=groups[ci];
         if(!grp||grp.verts.length===0)continue;
@@ -1097,8 +1113,11 @@ if(_themeBtn){
           resources+=`\n          <triangle v1="${grp.tris[i]}" v2="${grp.tris[i+1]}" v3="${grp.tris[i+2]}" p1="1"/>`;
         }
         resources+=`\n        </triangles>\n      </mesh>\n    </object>`;
-        build+=`\n    <item objectid="${objId}"/>`;
+        // Offset each plate so they don't overlap on the build surface
+        const offsetX=plateIndex*(bboxW+plateGap);
+        build+=`\n    <item objectid="${objId}" transform="1 0 0 0 1 0 0 0 1 ${(-minX+offsetX).toFixed(3)} ${(-minY).toFixed(3)} 0"/>`;
         resources+=`\n    <m:colorgroup id="${cgId}">\n      <m:color color="${hex}"/>\n    </m:colorgroup>`;
+        plateIndex++;
       }
     }
 
@@ -1135,7 +1154,7 @@ if(_themeBtn){
     const a=document.createElement('a');
     a.href=url;a.download=`bean_knock_${gridW}x${gridH}${suffix}.3mf`;
     a.click();URL.revokeObjectURL(url);
-    toast(mode==='board'?'网格模板 3MF 已导出':'豆豆 3MF 已导出');
+    toast(mode==='board'?'网格模板 3MF 已导出':`豆豆 3MF 已导出（${plateIndex} 种颜色各一盘）`);
   }
 
   id('exportBoard3MF').addEventListener('click',()=>export3MF('board'));
